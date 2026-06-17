@@ -2,16 +2,14 @@
 import axios from "axios";
 
 // Get API URL from environment variables
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL;
 
-// Create axios instance
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
-
 // Request interceptor - adds token to every request
 api.interceptors.request.use(
   (config) => {
@@ -45,8 +43,8 @@ api.interceptors.response.use(
 
 // Authentication API calls
 export const authAPI = {
-  register: (userData) => api.post("/api/auth/register", userData),
-  login: (userData) => api.post("/api/auth/login", userData),
+  register: (userData) => api.post("/auth/register", userData),
+  login: (userData) => api.post("/auth/login", userData),
   getMe: () => api.get("/auth/me"),
 };
 
