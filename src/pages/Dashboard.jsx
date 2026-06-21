@@ -89,7 +89,7 @@ const Dashboard = () => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">
-                Welcome back, {user?.name}! 👋
+                Welcome back, {user?.name}!
               </h1>
               <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Here's what's on your plate today.</p>
             </div>

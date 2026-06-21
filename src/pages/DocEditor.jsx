@@ -4,7 +4,16 @@ import Navbar from "../components/Navbar";
 
 const DOC_STORAGE_KEY = "worknest_doc_editor";
 const FONT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
-const FONT_FAMILIES = ["Inter", "Arial", "Georgia", "Times New Roman", "Courier New", "Helvetica", "Verdana", "Trebuchet MS"];
+const FONT_FAMILIES = [
+  "Inter",
+  "Arial",
+  "Georgia",
+  "Times New Roman",
+  "Courier New",
+  "Helvetica",
+  "Verdana",
+  "Trebuchet MS",
+];
 const PAGE_COLORS = [
   { label: "White", value: "#ffffff" },
   { label: "Light Gray", value: "#f3f4f6" },
@@ -26,47 +35,70 @@ const BORDER_STYLES = [
   { label: "Groove", value: "4px groove #94a3b8" },
 ];
 
-const ToolBtn = ({ onClick, title, active, children, className = "", disabled = false }) => (
+const ToolBtn = ({
+  onClick,
+  title,
+  active,
+  children,
+  className = "",
+  disabled = false,
+}) => (
   <button
-    onMouseDown={(e) => { e.preventDefault(); if (!disabled) onClick && onClick(e); }}
+    onMouseDown={(e) => {
+      e.preventDefault();
+      if (!disabled) onClick && onClick(e);
+    }}
     title={title}
     disabled={disabled}
     className={`px-2 py-1 rounded text-sm font-medium transition-all select-none ${
-      disabled ? "opacity-30 cursor-not-allowed" :
-      active
-        ? "bg-indigo-600 text-white shadow-sm"
-        : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+      disabled
+        ? "opacity-30 cursor-not-allowed"
+        : active
+          ? "bg-indigo-600 text-white shadow-sm"
+          : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
     } ${className}`}
   >
     {children}
   </button>
 );
 
-const Divider = () => <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />;
+const Divider = () => (
+  <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />
+);
 
 // Load external library via script tag — safe for repeat calls
-const loadScript = (src, checkGlobal) => new Promise((resolve, reject) => {
-  // If global already exists, resolve immediately
-  if (checkGlobal && window[checkGlobal]) { resolve(); return; }
-  // If script tag exists but global not ready yet, wait for it
-  const existing = document.querySelector(`script[src="${src}"]`);
-  if (existing) {
-    // Poll until global is ready (max 5s)
-    const start = Date.now();
-    const poll = () => {
-      if (!checkGlobal || window[checkGlobal]) { resolve(); return; }
-      if (Date.now() - start > 5000) { reject(new Error(`Timeout waiting for ${checkGlobal}`)); return; }
-      setTimeout(poll, 100);
-    };
-    poll();
-    return;
-  }
-  const s = document.createElement("script");
-  s.src = src;
-  s.onload = resolve;
-  s.onerror = reject;
-  document.head.appendChild(s);
-});
+const loadScript = (src, checkGlobal) =>
+  new Promise((resolve, reject) => {
+    // If global already exists, resolve immediately
+    if (checkGlobal && window[checkGlobal]) {
+      resolve();
+      return;
+    }
+    // If script tag exists but global not ready yet, wait for it
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      // Poll until global is ready (max 5s)
+      const start = Date.now();
+      const poll = () => {
+        if (!checkGlobal || window[checkGlobal]) {
+          resolve();
+          return;
+        }
+        if (Date.now() - start > 5000) {
+          reject(new Error(`Timeout waiting for ${checkGlobal}`));
+          return;
+        }
+        setTimeout(poll, 100);
+      };
+      poll();
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
 
 export default function DocEditor() {
   const editorRef = useRef(null);
@@ -123,13 +155,16 @@ export default function DocEditor() {
     if (!editorRef.current) return;
     const now = new Date().toLocaleTimeString();
     try {
-      localStorage.setItem(DOC_STORAGE_KEY, JSON.stringify({
-        content: editorRef.current.innerHTML,
-        name: docName,
-        savedAt: now,
-        pageColor,
-        pageBorder,
-      }));
+      localStorage.setItem(
+        DOC_STORAGE_KEY,
+        JSON.stringify({
+          content: editorRef.current.innerHTML,
+          name: docName,
+          savedAt: now,
+          pageColor,
+          pageBorder,
+        }),
+      );
       setLastSaved(now);
     } catch {}
   }, [docName, pageColor, pageBorder]);
@@ -145,7 +180,10 @@ export default function DocEditor() {
     const words = text.trim().split(/\s+/).filter(Boolean);
     setWordCount(words.length);
     setCharCount(text.replace(/\s/g, "").length);
-    setHasDocument(text.trim().length > 0 || (editorRef.current?.innerHTML || "").trim().length > 8);
+    setHasDocument(
+      text.trim().length > 0 ||
+        (editorRef.current?.innerHTML || "").trim().length > 8,
+    );
   };
 
   const exec = (cmd, value = null) => {
@@ -165,7 +203,11 @@ export default function DocEditor() {
   };
 
   const queryState = (cmd) => {
-    try { return document.queryCommandState(cmd); } catch { return false; }
+    try {
+      return document.queryCommandState(cmd);
+    } catch {
+      return false;
+    }
   };
 
   // ── Insert helpers ──────────────────────────────────────
@@ -173,8 +215,10 @@ export default function DocEditor() {
     if (isReadOnly) return;
     const rows = parseInt(prompt("Number of rows:", "3") || "3");
     const cols = parseInt(prompt("Number of columns:", "3") || "3");
-    if (!rows || !cols || rows > 20 || cols > 10) return notify("Invalid table size", "error");
-    let html = '<table border="1" style="border-collapse:collapse;width:100%;margin:12px 0;table-layout:fixed"><tbody>';
+    if (!rows || !cols || rows > 20 || cols > 10)
+      return notify("Invalid table size", "error");
+    let html =
+      '<table border="1" style="border-collapse:collapse;width:100%;margin:12px 0;table-layout:fixed"><tbody>';
     for (let r = 0; r < rows; r++) {
       html += "<tr>";
       for (let c = 0; c < cols; c++) {
@@ -194,7 +238,10 @@ export default function DocEditor() {
 
   const insertHr = () => {
     if (isReadOnly) return;
-    exec("insertHTML", "<hr style='border:none;border-top:2px solid #e2e8f0;margin:20px 0'/><p><br></p>");
+    exec(
+      "insertHTML",
+      "<hr style='border:none;border-top:2px solid #e2e8f0;margin:20px 0'/><p><br></p>",
+    );
   };
 
   const insertShape = (type) => {
@@ -216,7 +263,10 @@ export default function DocEditor() {
 
   const insertPageBreak = () => {
     if (isReadOnly) return;
-    exec("insertHTML", "<div style='page-break-after:always;border-top:2px dashed #e2e8f0;margin:24px 0;text-align:center'><span style='background:white;padding:0 8px;color:#94a3b8;font-size:11px'>— Page Break —</span></div><p><br></p>");
+    exec(
+      "insertHTML",
+      "<div style='page-break-after:always;border-top:2px dashed #e2e8f0;margin:24px 0;text-align:center'><span style='background:white;padding:0 8px;color:#94a3b8;font-size:11px'>— Page Break —</span></div><p><br></p>",
+    );
   };
 
   // ── File upload ────────────────────────────────────────
@@ -241,11 +291,13 @@ export default function DocEditor() {
           setDocType("txt");
           setIsReadOnly(true);
           setHasDocument(true);
-          notify("✅ Text file loaded! Click 'Edit Document' to make changes.", "success");
+          notify(
+            "✅ Text file loaded! Click 'Edit Document' to make changes.",
+            "success",
+          );
         }
       };
       reader.readAsText(file);
-
     } else if (ext === "html" || ext === "htm") {
       const reader = new FileReader();
       reader.onload = (ev) => {
@@ -257,24 +309,29 @@ export default function DocEditor() {
           setDocType("html");
           setIsReadOnly(true);
           setHasDocument(true);
-          notify("✅ HTML file loaded! Click 'Edit Document' to make changes.", "success");
+          notify(
+            "✅ HTML file loaded! Click 'Edit Document' to make changes.",
+            "success",
+          );
         }
       };
       reader.readAsText(file);
-
     } else if (ext === "docx") {
       await loadDocx(file);
-
     } else if (ext === "pdf") {
       await loadPdf(file);
-
     } else if (ext === "pptx" || ext === "ppt") {
       await loadPptx(file);
-
     } else if (ext === "doc") {
-      notify("⚠️ Legacy .doc format not supported. Please save as .docx and try again.", "warning");
+      notify(
+        "⚠️ Legacy .doc format not supported. Please save as .docx and try again.",
+        "warning",
+      );
     } else {
-      notify(`⚠️ File type .${ext} is not supported. Supported: .txt, .html, .docx, .pdf, .pptx`, "warning");
+      notify(
+        `⚠️ File type .${ext} is not supported. Supported: .txt, .html, .docx, .pdf, .pptx`,
+        "warning",
+      );
     }
   };
 
@@ -285,30 +342,45 @@ export default function DocEditor() {
     try {
       await loadScript(
         "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js",
-        "mammoth"
+        "mammoth",
       );
       const arrayBuffer = await file.arrayBuffer();
       const result = await window.mammoth.convertToHtml({ arrayBuffer });
       if (editorRef.current) {
         let html = result.value || "";
         // Fix table styling
-        html = html.replace(/<table>/g, '<table style="border-collapse:collapse;width:100%;margin:12px 0">');
-        html = html.replace(/<td>/g, '<td style="border:1px solid #cbd5e1;padding:8px 12px;color:#1f2937">');
-        html = html.replace(/<th>/g, '<th style="border:1px solid #cbd5e1;padding:8px 12px;background:#f8fafc;font-weight:600;color:#111827">');
+        html = html.replace(
+          /<table>/g,
+          '<table style="border-collapse:collapse;width:100%;margin:12px 0">',
+        );
+        html = html.replace(
+          /<td>/g,
+          '<td style="border:1px solid #cbd5e1;padding:8px 12px;color:#1f2937">',
+        );
+        html = html.replace(
+          /<th>/g,
+          '<th style="border:1px solid #cbd5e1;padding:8px 12px;background:#f8fafc;font-weight:600;color:#111827">',
+        );
         // Wrap in explicit-color container
         html = `<div style="color:#1f2937">${html || "<p><em style='color:#9ca3af'>Document appears empty or could not be parsed.</em></p>"}</div>`;
         editorRef.current.innerHTML = "";
-        await new Promise(r => setTimeout(r, 30));
+        await new Promise((r) => setTimeout(r, 30));
         editorRef.current.innerHTML = html;
         updateCounts();
         setDocType("docx");
         setIsReadOnly(true);
         setHasDocument(true);
-        notify("✅ Word document loaded! Click 'Edit Document' to make changes.", "success");
+        notify(
+          "✅ Word document loaded! Click 'Edit Document' to make changes.",
+          "success",
+        );
       }
     } catch (err) {
       console.error(err);
-      notify("❌ Failed to load Word document. Please try a different file.", "error");
+      notify(
+        "Failed to load Word document. Please try a different file.",
+        "error",
+      );
     } finally {
       setIsLoading(false);
       setLoadingMsg("");
@@ -323,24 +395,25 @@ export default function DocEditor() {
       // Load PDF.js — pass global name so we wait until it's truly ready
       await loadScript(
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
-        "pdfjsLib"
+        "pdfjsLib",
       );
       // Always reassign workerSrc in case of stale state
       window.pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer })
+        .promise;
       const numPages = pdf.numPages;
 
       // Build HTML with fully explicit inline colors so dark/light mode never bleed in
       let fullHtml =
         `<div style="color:#111827;font-family:inherit">` +
-        `<h1 style="font-size:22px;font-weight:700;color:#111827;margin:0 0 4px 0">${
-          docName.replace(/</g,"&lt;").replace(/>/g,"&gt;")
-        }</h1>` +
+        `<h1 style="font-size:22px;font-weight:700;color:#111827;margin:0 0 4px 0">${docName
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")}</h1>` +
         `<p style="color:#6b7280;font-size:12px;margin:0 0 20px 0">` +
-          `Extracted from PDF · ${numPages} page${numPages > 1 ? "s" : ""}` +
+        `Extracted from PDF · ${numPages} page${numPages > 1 ? "s" : ""}` +
         `</p>`;
 
       for (let i = 1; i <= numPages; i++) {
@@ -351,25 +424,38 @@ export default function DocEditor() {
         // --- Smarter line grouping using Y coordinate buckets ---
         // Sort items by descending Y (PDF coords are bottom-up), then by X
         const sorted = [...textContent.items]
-          .filter(item => item.str && item.str.trim())
-          .sort((a, b) => b.transform[5] - a.transform[5] || a.transform[4] - b.transform[4]);
+          .filter((item) => item.str && item.str.trim())
+          .sort(
+            (a, b) =>
+              b.transform[5] - a.transform[5] ||
+              a.transform[4] - b.transform[4],
+          );
 
         const lineMap = new Map(); // rounded-Y => [{str, x, height}]
         sorted.forEach((item) => {
           const y = Math.round(item.transform[5] / 4) * 4; // bucket to 4pt rows
           if (!lineMap.has(y)) lineMap.set(y, []);
-          lineMap.get(y).push({ str: item.str, x: item.transform[4], h: item.height || 12 });
+          lineMap
+            .get(y)
+            .push({
+              str: item.str,
+              x: item.transform[4],
+              h: item.height || 12,
+            });
         });
 
         // Sort lines top-to-bottom (descending Y) and join words left-to-right
         const sortedYs = [...lineMap.keys()].sort((a, b) => b - a);
-        const lines = sortedYs.map(y =>
-          lineMap.get(y)
-            .sort((a, b) => a.x - b.x)
-            .map(i => i.str)
-            .join(" ")
-            .trim()
-        ).filter(Boolean);
+        const lines = sortedYs
+          .map((y) =>
+            lineMap
+              .get(y)
+              .sort((a, b) => a.x - b.x)
+              .map((i) => i.str)
+              .join(" ")
+              .trim(),
+          )
+          .filter(Boolean);
 
         // Page separator
         fullHtml +=
@@ -378,11 +464,19 @@ export default function DocEditor() {
           `</div>`;
 
         lines.forEach((line) => {
-          const safe = line.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+          const safe = line
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
           // Heuristic: short lines that start with uppercase might be headings
-          const isHeading = line.length < 80 && /^[A-Z\u00C0-\u024F\d]/.test(line)
-            && lineMap.get(sortedYs.find(y => lineMap.get(y).some(i => i.str === line.split(" ")[0])))
-               ?.[0]?.h > 13;
+          const isHeading =
+            line.length < 80 &&
+            /^[A-Z\u00C0-\u024F\d]/.test(line) &&
+            lineMap.get(
+              sortedYs.find((y) =>
+                lineMap.get(y).some((i) => i.str === line.split(" ")[0]),
+              ),
+            )?.[0]?.h > 13;
           if (isHeading) {
             fullHtml += `<p style="font-size:15px;font-weight:700;color:#111827;margin:10px 0 4px 0">${safe}</p>`;
           } else {
@@ -397,17 +491,23 @@ export default function DocEditor() {
         // Clear first so React doesn't merge stale innerHTML
         editorRef.current.innerHTML = "";
         // Use a small timeout so the DOM flush completes before writing new content
-        await new Promise(r => setTimeout(r, 30));
+        await new Promise((r) => setTimeout(r, 30));
         editorRef.current.innerHTML = fullHtml;
         updateCounts();
         setDocType("pdf");
         setIsReadOnly(true);
         setHasDocument(true);
-        notify(`✅ PDF loaded (${numPages} pages). Click 'Edit Document' to make changes.`, "success");
+        notify(
+          `✅ PDF loaded (${numPages} pages). Click 'Edit Document' to make changes.`,
+          "success",
+        );
       }
     } catch (err) {
       console.error("PDF load error:", err);
-      notify("❌ Failed to load PDF. The file may be encrypted or corrupted.", "error");
+      notify(
+        "Failed to load PDF. The file may be encrypted or corrupted.",
+        "error",
+      );
     } finally {
       setIsLoading(false);
       setLoadingMsg("");
@@ -421,7 +521,7 @@ export default function DocEditor() {
     try {
       await loadScript(
         "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
-        "JSZip"
+        "JSZip",
       );
 
       const arrayBuffer = await file.arrayBuffer();
@@ -438,8 +538,9 @@ export default function DocEditor() {
 
       if (slideFiles.length === 0) throw new Error("No slides found");
 
-      let fullHtml = `<div style="color:#1f2937">` +
-        `<h1 style="font-size:22px;font-weight:700;color:#111827;margin:0 0 4px 0">${docName.replace(/</g,"&lt;")}</h1>` +
+      let fullHtml =
+        `<div style="color:#1f2937">` +
+        `<h1 style="font-size:22px;font-weight:700;color:#111827;margin:0 0 4px 0">${docName.replace(/</g, "&lt;")}</h1>` +
         `<p style="color:#6b7280;font-size:12px;margin:0 0 20px 0">PowerPoint Presentation · ${slideFiles.length} slide${slideFiles.length > 1 ? "s" : ""}</p>`;
 
       for (let idx = 0; idx < slideFiles.length; idx++) {
@@ -449,15 +550,26 @@ export default function DocEditor() {
         const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
         // Extract all text runs
-        const paras = xmlDoc.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "p");
+        const paras = xmlDoc.getElementsByTagNameNS(
+          "http://schemas.openxmlformats.org/drawingml/2006/main",
+          "p",
+        );
         const slideTexts = [];
 
         Array.from(paras).forEach((para) => {
-          const runs = para.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "r");
-          const lineText = Array.from(runs).map((r) => {
-            const t = r.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "t")[0];
-            return t?.textContent || "";
-          }).join("");
+          const runs = para.getElementsByTagNameNS(
+            "http://schemas.openxmlformats.org/drawingml/2006/main",
+            "r",
+          );
+          const lineText = Array.from(runs)
+            .map((r) => {
+              const t = r.getElementsByTagNameNS(
+                "http://schemas.openxmlformats.org/drawingml/2006/main",
+                "t",
+              )[0];
+              return t?.textContent || "";
+            })
+            .join("");
           if (lineText.trim()) slideTexts.push(lineText.trim());
         });
 
@@ -467,12 +579,17 @@ export default function DocEditor() {
           `<div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Slide ${idx + 1}</div>` +
           (slideTexts.length === 0
             ? '<p style="color:#9ca3af;font-style:italic">Empty slide</p>'
-            : slideTexts.map((t, i) => {
-                const safe = t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-                return i === 0 && t.length < 120
-                  ? `<h2 style="font-size:18px;font-weight:700;color:#111827;margin:0 0 8px 0">${safe}</h2>`
-                  : `<p style="margin:4px 0;font-size:13px;color:#1f2937;line-height:1.6">${safe}</p>`;
-              }).join("")) +
+            : slideTexts
+                .map((t, i) => {
+                  const safe = t
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
+                  return i === 0 && t.length < 120
+                    ? `<h2 style="font-size:18px;font-weight:700;color:#111827;margin:0 0 8px 0">${safe}</h2>`
+                    : `<p style="margin:4px 0;font-size:13px;color:#1f2937;line-height:1.6">${safe}</p>`;
+                })
+                .join("")) +
           `</div>`;
       }
 
@@ -480,17 +597,23 @@ export default function DocEditor() {
 
       if (editorRef.current) {
         editorRef.current.innerHTML = "";
-        await new Promise(r => setTimeout(r, 30));
+        await new Promise((r) => setTimeout(r, 30));
         editorRef.current.innerHTML = fullHtml;
         updateCounts();
         setDocType("pptx");
         setIsReadOnly(true);
         setHasDocument(true);
-        notify(`✅ PowerPoint loaded (${slideFiles.length} slides). Click 'Edit Document' to edit.`, "success");
+        notify(
+          `PowerPoint loaded (${slideFiles.length} slides). Click 'Edit Document' to edit.`,
+          "success",
+        );
       }
     } catch (err) {
       console.error(err);
-      notify("❌ Failed to load PowerPoint file. The file may be corrupted.", "error");
+      notify(
+        "Failed to load PowerPoint file. The file may be corrupted.",
+        "error",
+      );
     } finally {
       setIsLoading(false);
       setLoadingMsg("");
@@ -511,12 +634,10 @@ table{border-collapse:collapse;width:100%}td,th{border:1px solid #cbd5e1;padding
 h1{font-size:28px}h2{font-size:22px}h3{font-size:18px}
 </style></head><body>${content}</body></html>`;
       dlBlob(new Blob([full], { type: "text/html" }), `${docName}.html`);
-      notify("✅ Exported as HTML!", "success");
-
+      notify("Exported as HTML!", "success");
     } else if (format === "txt") {
       dlBlob(new Blob([text], { type: "text/plain" }), `${docName}.txt`);
-      notify("✅ Exported as Plain Text!", "success");
-
+      notify("Exported as Plain Text!", "success");
     } else if (format === "md") {
       let md = content
         .replace(/<h1[^>]*>(.*?)<\/h1>/gi, "# $1\n\n")
@@ -531,14 +652,20 @@ h1{font-size:28px}h2{font-size:22px}h3{font-size:18px}
         .replace(/<br\s*\/?>/gi, "\n")
         .replace(/<p[^>]*>(.*?)<\/p>/gi, "$1\n\n")
         .replace(/<[^>]+>/g, "")
-        .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ");
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&nbsp;/g, " ");
       dlBlob(new Blob([md], { type: "text/markdown" }), `${docName}.md`);
-      notify("✅ Exported as Markdown!", "success");
-
+      notify("Exported as Markdown!", "success");
     } else if (format === "pdf") {
       const printWin = window.open("", "_blank");
-      if (!printWin) { notify("❌ Pop-up blocked! Allow pop-ups to export PDF.", "error"); return; }
-      printWin.document.write(`<!DOCTYPE html><html><head><title>${docName}</title>
+      if (!printWin) {
+        notify("Pop-up blocked! Allow pop-ups to export PDF.", "error");
+        return;
+      }
+      printWin.document
+        .write(`<!DOCTYPE html><html><head><title>${docName}</title>
 <style>
 @page{margin:2cm}
 body{font-family:${fontFamily},sans-serif;font-size:${fontSize}px;line-height:1.7;color:#1e293b;background:${pageColor}}
@@ -547,9 +674,11 @@ h1{font-size:26px}h2{font-size:20px}h3{font-size:16px}
 img{max-width:100%}
 </style></head><body>${content}</body></html>`);
       printWin.document.close();
-      setTimeout(() => { printWin.print(); setTimeout(() => printWin.close(), 1000); }, 600);
+      setTimeout(() => {
+        printWin.print();
+        setTimeout(() => printWin.close(), 1000);
+      }, 600);
       notify("🖨️ Print dialog opened — save as PDF!", "info");
-
     } else if (format === "docx") {
       // Export as RTF (opens in Word)
       const rtf = `{\\rtf1\\ansi\\ansicpg1252\\deff0
@@ -559,13 +688,11 @@ img{max-width:100%}
 ${text.replace(/\n/g, "\\par\n").replace(/[\\{}]/g, "\\$&")}
 }`;
       dlBlob(new Blob([rtf], { type: "application/msword" }), `${docName}.rtf`);
-      notify("✅ Exported as Word-compatible RTF!", "success");
-
+      notify("Exported as Word-compatible RTF!", "success");
     } else if (format === "rtf") {
       const rtf = `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 ${fontFamily};}}\n\\f0\\fs${fontSize * 2} ${text.replace(/\n/g, "\\par\n")}\n}`;
       dlBlob(new Blob([rtf], { type: "application/rtf" }), `${docName}.rtf`);
-      notify("✅ Exported as RTF!", "success");
-
+      notify("Exported as RTF!", "success");
     } else if (format === "pptx_html") {
       // Export as HTML slides
       const slides = content.split("<!-- slide -->").filter(Boolean);
@@ -576,8 +703,11 @@ ${text.replace(/\n/g, "\\par\n").replace(/[\\{}]/g, "\\$&")}
 body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
 .slide{width:960px;min-height:540px;background:white;margin:40px auto;padding:60px;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.4);page-break-after:always}
 </style></head><body><div class="slide">${content}</div></body></html>`;
-        dlBlob(new Blob([html], { type: "text/html" }), `${docName}-slides.html`);
-        notify("✅ Exported as Slide HTML!", "success");
+        dlBlob(
+          new Blob([html], { type: "text/html" }),
+          `${docName}-slides.html`,
+        );
+        notify("Exported as Slide HTML!", "success");
       }
     }
   };
@@ -591,11 +721,16 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
   };
 
   const newDocument = () => {
-    if (hasDocument && !confirm("Start a new document? Unsaved changes will be lost.")) return;
+    if (
+      hasDocument &&
+      !confirm("Start a new document? Unsaved changes will be lost.")
+    )
+      return;
     if (editorRef.current) editorRef.current.innerHTML = "";
     setDocName("Untitled Document");
     setLastSaved(null);
-    setWordCount(0); setCharCount(0);
+    setWordCount(0);
+    setCharCount(0);
     setIsReadOnly(false);
     setHasDocument(false);
     setDocType("new");
@@ -620,7 +755,14 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
 
   // ── Render ─────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-950 transition-colors duration-200" onClick={() => { setShowExport(false); setShowShapes(false); setShowPageOptions(false); }}>
+    <div
+      className="flex flex-col h-screen bg-gray-100 dark:bg-gray-950 transition-colors duration-200"
+      onClick={() => {
+        setShowExport(false);
+        setShowShapes(false);
+        setShowPageOptions(false);
+      }}
+    >
       <Navbar />
 
       {/* ── Top action bar ── */}
@@ -633,10 +775,17 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
           className="flex-1 min-w-0 max-w-xs text-gray-800 dark:text-white bg-transparent font-semibold text-sm outline-none border-b-2 border-transparent focus:border-indigo-400 transition-colors disabled:cursor-default"
           placeholder="Document name..."
         />
-        {lastSaved && <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:block">Saved {lastSaved}</span>}
+        {lastSaved && (
+          <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:block">
+            Saved {lastSaved}
+          </span>
+        )}
 
         <div className="flex items-center gap-2 ml-auto flex-wrap">
-          <button onClick={newDocument} className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 font-medium transition border border-gray-200 dark:border-gray-700">
+          <button
+            onClick={newDocument}
+            className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 font-medium transition border border-gray-200 dark:border-gray-700"
+          >
             📄 New
           </button>
 
@@ -661,21 +810,30 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
             </button>
           )}
 
-          <button onClick={saveDoc} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium transition">
+          <button
+            onClick={saveDoc}
+            className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium transition"
+          >
             💾 Save
           </button>
 
           {/* Download dropdown */}
           <div className="relative" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={() => { setShowExport(!showExport); setShowShapes(false); setShowPageOptions(false); }}
+              onClick={() => {
+                setShowExport(!showExport);
+                setShowShapes(false);
+                setShowPageOptions(false);
+              }}
               className="px-3 py-1.5 text-xs bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium flex items-center gap-1 transition"
             >
               ⬇ Download ▾
             </button>
             {showExport && (
               <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl py-1.5 z-50 min-w-48">
-                <div className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">Export As</div>
+                <div className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Export As
+                </div>
                 {[
                   { f: "pdf", label: "📄 PDF (Print Dialog)" },
                   { f: "docx", label: "📝 Word (.rtf)" },
@@ -685,8 +843,11 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
                   { f: "rtf", label: "📄 RTF" },
                   { f: "pptx_html", label: "📊 Slide HTML" },
                 ].map(({ f, label }) => (
-                  <button key={f} onClick={() => exportAs(f)}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                  <button
+                    key={f}
+                    onClick={() => exportAs(f)}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                  >
                     {label}
                   </button>
                 ))}
@@ -697,66 +858,157 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
       </div>
 
       {/* ── Formatting toolbar ── */}
-      <div className={`bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-0.5 flex-wrap transition-opacity ${isReadOnly ? "opacity-50 pointer-events-none" : ""}`}>
+      <div
+        className={`bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-0.5 flex-wrap transition-opacity ${isReadOnly ? "opacity-50 pointer-events-none" : ""}`}
+      >
         {/* Font family */}
-        <select value={fontFamily} onChange={(e) => { setFontFamily(e.target.value); exec("fontName", e.target.value); }}
-          className="text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 mr-1">
-          {FONT_FAMILIES.map((f) => <option key={f}>{f}</option>)}
+        <select
+          value={fontFamily}
+          onChange={(e) => {
+            setFontFamily(e.target.value);
+            exec("fontName", e.target.value);
+          }}
+          className="text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 mr-1"
+        >
+          {FONT_FAMILIES.map((f) => (
+            <option key={f}>{f}</option>
+          ))}
         </select>
 
         {/* Font size */}
-        <select value={fontSize} onChange={(e) => applyFontSize(Number(e.target.value))}
-          className="text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 mr-1 w-16">
-          {FONT_SIZES.map((s) => <option key={s}>{s}</option>)}
+        <select
+          value={fontSize}
+          onChange={(e) => applyFontSize(Number(e.target.value))}
+          className="text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 mr-1 w-16"
+        >
+          {FONT_SIZES.map((s) => (
+            <option key={s}>{s}</option>
+          ))}
         </select>
 
         <Divider />
-        <ToolBtn onClick={() => exec("bold")} active={queryState("bold")} title="Bold (Ctrl+B)"><b>B</b></ToolBtn>
-        <ToolBtn onClick={() => exec("italic")} active={queryState("italic")} title="Italic (Ctrl+I)"><i>I</i></ToolBtn>
-        <ToolBtn onClick={() => exec("underline")} active={queryState("underline")} title="Underline"><u>U</u></ToolBtn>
-        <ToolBtn onClick={() => exec("strikeThrough")} title="Strikethrough"><s>S</s></ToolBtn>
-        <ToolBtn onClick={() => exec("superscript")} title="Superscript">x²</ToolBtn>
-        <ToolBtn onClick={() => exec("subscript")} title="Subscript">x₂</ToolBtn>
+        <ToolBtn
+          onClick={() => exec("bold")}
+          active={queryState("bold")}
+          title="Bold (Ctrl+B)"
+        >
+          <b>B</b>
+        </ToolBtn>
+        <ToolBtn
+          onClick={() => exec("italic")}
+          active={queryState("italic")}
+          title="Italic (Ctrl+I)"
+        >
+          <i>I</i>
+        </ToolBtn>
+        <ToolBtn
+          onClick={() => exec("underline")}
+          active={queryState("underline")}
+          title="Underline"
+        >
+          <u>U</u>
+        </ToolBtn>
+        <ToolBtn onClick={() => exec("strikeThrough")} title="Strikethrough">
+          <s>S</s>
+        </ToolBtn>
+        <ToolBtn onClick={() => exec("superscript")} title="Superscript">
+          x²
+        </ToolBtn>
+        <ToolBtn onClick={() => exec("subscript")} title="Subscript">
+          x₂
+        </ToolBtn>
 
         <Divider />
-        <ToolBtn onClick={() => exec("justifyLeft")} title="Align Left">⬅</ToolBtn>
-        <ToolBtn onClick={() => exec("justifyCenter")} title="Center">↔</ToolBtn>
-        <ToolBtn onClick={() => exec("justifyRight")} title="Align Right">➡</ToolBtn>
-        <ToolBtn onClick={() => exec("justifyFull")} title="Justify">≡</ToolBtn>
+        <ToolBtn onClick={() => exec("justifyLeft")} title="Align Left">
+          ⬅
+        </ToolBtn>
+        <ToolBtn onClick={() => exec("justifyCenter")} title="Center">
+          ↔
+        </ToolBtn>
+        <ToolBtn onClick={() => exec("justifyRight")} title="Align Right">
+          ➡
+        </ToolBtn>
+        <ToolBtn onClick={() => exec("justifyFull")} title="Justify">
+          ≡
+        </ToolBtn>
 
         <Divider />
-        <ToolBtn onClick={() => exec("insertUnorderedList")} title="Bullet List">• List</ToolBtn>
-        <ToolBtn onClick={() => exec("insertOrderedList")} title="Numbered List">1. List</ToolBtn>
-        <ToolBtn onClick={() => exec("indent")} title="Indent">→|</ToolBtn>
-        <ToolBtn onClick={() => exec("outdent")} title="Outdent">|←</ToolBtn>
+        <ToolBtn
+          onClick={() => exec("insertUnorderedList")}
+          title="Bullet List"
+        >
+          • List
+        </ToolBtn>
+        <ToolBtn
+          onClick={() => exec("insertOrderedList")}
+          title="Numbered List"
+        >
+          1. List
+        </ToolBtn>
+        <ToolBtn onClick={() => exec("indent")} title="Indent">
+          →|
+        </ToolBtn>
+        <ToolBtn onClick={() => exec("outdent")} title="Outdent">
+          |←
+        </ToolBtn>
 
         <Divider />
-        {["h1","h2","h3"].map((h) => (
-          <ToolBtn key={h} onClick={() => exec("formatBlock", h)} title={h.toUpperCase()}>
-            <span style={{ fontSize: h === "h1" ? 13 : h === "h2" ? 11 : 10 }}>{h.toUpperCase()}</span>
+        {["h1", "h2", "h3"].map((h) => (
+          <ToolBtn
+            key={h}
+            onClick={() => exec("formatBlock", h)}
+            title={h.toUpperCase()}
+          >
+            <span style={{ fontSize: h === "h1" ? 13 : h === "h2" ? 11 : 10 }}>
+              {h.toUpperCase()}
+            </span>
           </ToolBtn>
         ))}
-        <ToolBtn onClick={() => exec("formatBlock", "p")} title="Normal">¶</ToolBtn>
-        <ToolBtn onClick={() => exec("formatBlock", "blockquote")} title="Blockquote">❝</ToolBtn>
-        <ToolBtn onClick={() => exec("formatBlock", "pre")} title="Code Block">{`</>`}</ToolBtn>
+        <ToolBtn onClick={() => exec("formatBlock", "p")} title="Normal">
+          ¶
+        </ToolBtn>
+        <ToolBtn
+          onClick={() => exec("formatBlock", "blockquote")}
+          title="Blockquote"
+        >
+          ❝
+        </ToolBtn>
+        <ToolBtn
+          onClick={() => exec("formatBlock", "pre")}
+          title="Code Block"
+        >{`</>`}</ToolBtn>
 
         <Divider />
-        <ToolBtn onClick={insertTable} title="Insert Table">⊞ Table</ToolBtn>
-        <ToolBtn onClick={insertLink} title="Insert Link">🔗</ToolBtn>
-        <ToolBtn onClick={insertHr} title="Horizontal Rule">― HR</ToolBtn>
-        <ToolBtn onClick={insertPageBreak} title="Page Break">⊖ Break</ToolBtn>
+        <ToolBtn onClick={insertTable} title="Insert Table">
+          ⊞ Table
+        </ToolBtn>
+        <ToolBtn onClick={insertLink} title="Insert Link">
+          🔗
+        </ToolBtn>
+        <ToolBtn onClick={insertHr} title="Horizontal Rule">
+          ― HR
+        </ToolBtn>
+        <ToolBtn onClick={insertPageBreak} title="Page Break">
+          ⊖ Break
+        </ToolBtn>
 
         {/* Shapes dropdown */}
         <div className="relative" onClick={(e) => e.stopPropagation()}>
           <ToolBtn
-            onClick={() => { setShowShapes(!showShapes); setShowExport(false); setShowPageOptions(false); }}
+            onClick={() => {
+              setShowShapes(!showShapes);
+              setShowExport(false);
+              setShowPageOptions(false);
+            }}
             title="Insert Shape"
           >
             ◻ Shape ▾
           </ToolBtn>
           {showShapes && (
             <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl p-3 z-50 min-w-52">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Insert Shape</div>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                Insert Shape
+              </div>
               <div className="grid grid-cols-2 gap-1.5">
                 {[
                   { id: "rect", label: "▬ Rectangle" },
@@ -769,8 +1021,11 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
                   { id: "callout", label: "💬 Callout" },
                   { id: "textbox", label: "▭ Text Box" },
                 ].map(({ id, label }) => (
-                  <button key={id} onClick={() => insertShape(id)}
-                    className="text-left text-xs px-2 py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition">
+                  <button
+                    key={id}
+                    onClick={() => insertShape(id)}
+                    className="text-left text-xs px-2 py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition"
+                  >
                     {label}
                   </button>
                 ))}
@@ -783,60 +1038,106 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
         {/* Text color */}
         <div className="flex items-center gap-1">
           <span className="text-xs text-gray-500">A</span>
-          <input type="color" value={textColor}
-            onChange={(e) => { setTextColor(e.target.value); exec("foreColor", e.target.value); }}
-            className="w-6 h-6 rounded border border-gray-200 cursor-pointer" title="Text Color" />
+          <input
+            type="color"
+            value={textColor}
+            onChange={(e) => {
+              setTextColor(e.target.value);
+              exec("foreColor", e.target.value);
+            }}
+            className="w-6 h-6 rounded border border-gray-200 cursor-pointer"
+            title="Text Color"
+          />
         </div>
         {/* Highlight */}
         <div className="flex items-center gap-1 ml-1">
           <span className="text-xs text-gray-500">HL</span>
-          <input type="color" value={bgHighlight}
-            onChange={(e) => { setBgHighlight(e.target.value); exec("hiliteColor", e.target.value); }}
-            className="w-6 h-6 rounded border border-gray-200 cursor-pointer" title="Highlight Color" />
+          <input
+            type="color"
+            value={bgHighlight}
+            onChange={(e) => {
+              setBgHighlight(e.target.value);
+              exec("hiliteColor", e.target.value);
+            }}
+            className="w-6 h-6 rounded border border-gray-200 cursor-pointer"
+            title="Highlight Color"
+          />
         </div>
 
         <Divider />
-        <ToolBtn onClick={() => exec("undo")} title="Undo (Ctrl+Z)">↩</ToolBtn>
-        <ToolBtn onClick={() => exec("redo")} title="Redo (Ctrl+Y)">↪</ToolBtn>
-        <ToolBtn onClick={() => exec("removeFormat")} title="Clear Formatting">✕ Fmt</ToolBtn>
+        <ToolBtn onClick={() => exec("undo")} title="Undo (Ctrl+Z)">
+          ↩
+        </ToolBtn>
+        <ToolBtn onClick={() => exec("redo")} title="Redo (Ctrl+Y)">
+          ↪
+        </ToolBtn>
+        <ToolBtn onClick={() => exec("removeFormat")} title="Clear Formatting">
+          ✕ Fmt
+        </ToolBtn>
       </div>
 
       {/* ── Page options bar ── */}
-      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
-        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 mr-1">Page:</span>
+      <div
+        className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-2 flex-wrap"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 mr-1">
+          Page:
+        </span>
 
         {/* Background color */}
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-gray-500 dark:text-gray-400">BG</span>
           <div className="flex gap-1">
             {PAGE_COLORS.map((c) => (
-              <button key={c.value} title={c.label}
+              <button
+                key={c.value}
+                title={c.label}
                 onClick={() => setPageColor(c.value)}
                 className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${pageColor === c.value ? "border-indigo-500 scale-110" : "border-gray-300"}`}
                 style={{ background: c.value }}
               />
             ))}
-            <input type="color" value={pageColor} onChange={(e) => setPageColor(e.target.value)}
-              className="w-5 h-5 rounded border border-gray-200 cursor-pointer" title="Custom BG Color" />
+            <input
+              type="color"
+              value={pageColor}
+              onChange={(e) => setPageColor(e.target.value)}
+              className="w-5 h-5 rounded border border-gray-200 cursor-pointer"
+              title="Custom BG Color"
+            />
           </div>
         </div>
 
         <Divider />
         {/* Border style */}
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Border</span>
-          <select value={pageBorder} onChange={(e) => setPageBorder(e.target.value)}
-            className="text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200">
-            {BORDER_STYLES.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            Border
+          </span>
+          <select
+            value={pageBorder}
+            onChange={(e) => setPageBorder(e.target.value)}
+            className="text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200"
+          >
+            {BORDER_STYLES.map((b) => (
+              <option key={b.value} value={b.value}>
+                {b.label}
+              </option>
+            ))}
           </select>
         </div>
 
         <Divider />
         {/* Page width */}
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Width</span>
-          <select value={pageWidth} onChange={(e) => setPageWidth(e.target.value)}
-            className="text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            Width
+          </span>
+          <select
+            value={pageWidth}
+            onChange={(e) => setPageWidth(e.target.value)}
+            className="text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200"
+          >
             <option value="max-w-2xl">Narrow</option>
             <option value="max-w-4xl">Standard</option>
             <option value="max-w-5xl">Wide</option>
@@ -847,8 +1148,15 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
         {/* Read-only badge */}
         {isReadOnly && (
           <div className="ml-auto flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg px-2.5 py-1">
-            <span className="text-amber-600 dark:text-amber-400 text-xs font-medium">👁️ Read-Only Mode</span>
-            <button onClick={toggleEditMode} className="text-xs text-amber-700 dark:text-amber-300 underline hover:no-underline ml-1">Edit</button>
+            <span className="text-amber-600 dark:text-amber-400 text-xs font-medium">
+              👁️ Read-Only Mode
+            </span>
+            <button
+              onClick={toggleEditMode}
+              className="text-xs text-amber-700 dark:text-amber-300 underline hover:no-underline ml-1"
+            >
+              Edit
+            </button>
           </div>
         )}
       </div>
@@ -860,7 +1168,9 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
             <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-sm mx-4">
               <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-              <div className="text-gray-700 dark:text-gray-300 font-medium text-center">{loadingMsg}</div>
+              <div className="text-gray-700 dark:text-gray-300 font-medium text-center">
+                {loadingMsg}
+              </div>
               <div className="text-gray-400 text-sm">Please wait...</div>
             </div>
           </div>
@@ -868,15 +1178,23 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
 
         {/* Empty state */}
         {!hasDocument && !isLoading && (
-          <div className={`bg-white dark:bg-gray-950 ${pageWidth} mx-auto mb-4 p-12 rounded-sm shadow text-center`}>
+          <div
+            className={`bg-white dark:bg-gray-950 ${pageWidth} mx-auto mb-4 p-12 rounded-sm shadow text-center`}
+          >
             <div className="text-5xl mb-4">📄</div>
-            <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Your document is empty</h2>
+            <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              Your document is empty
+            </h2>
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
-              Start typing below, or open a file to get started.<br />
-              Supported formats: <strong>.txt, .html, .docx, .pdf, .pptx</strong>
+              Start typing below, or open a file to get started.
+              <br />
+              Supported formats:{" "}
+              <strong>.txt, .html, .docx, .pdf, .pptx</strong>
             </p>
-            <button onClick={() => fileInputRef.current.click()}
-              className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium transition text-sm">
+            <button
+              onClick={() => fileInputRef.current.click()}
+              className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium transition text-sm"
+            >
               📂 Open a Document
             </button>
           </div>
@@ -888,7 +1206,10 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
           contentEditable={!isReadOnly}
           suppressContentEditableWarning
           onInput={updateCounts}
-          onClick={() => { setShowExport(false); setShowShapes(false); }}
+          onClick={() => {
+            setShowExport(false);
+            setShowShapes(false);
+          }}
           style={{
             fontFamily,
             fontSize: fontSize + "px",
@@ -904,22 +1225,35 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
 
       {/* ── Status bar ── */}
       <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-1.5 flex items-center gap-6 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
-        <span>{wordCount} words · {charCount} chars</span>
-        <span>{fontFamily} · {fontSize}px</span>
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${isReadOnly ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"}`}>
+        <span>
+          {wordCount} words · {charCount} chars
+        </span>
+        <span>
+          {fontFamily} · {fontSize}px
+        </span>
+        <span
+          className={`px-2 py-0.5 rounded-full text-xs font-medium ${isReadOnly ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"}`}
+        >
           {isReadOnly ? "Read-Only" : "Editing"}
         </span>
-        <span className="ml-auto hidden sm:block">Auto-saves every 15s · Ctrl+B Bold · Ctrl+I Italic · Ctrl+Z Undo</span>
+        <span className="ml-auto hidden sm:block">
+          Auto-saves every 15s · Ctrl+B Bold · Ctrl+I Italic · Ctrl+Z Undo
+        </span>
       </div>
 
       {/* Notification toast */}
       {notification && (
-        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-2.5 rounded-xl shadow-2xl text-sm font-medium z-50 transition-all max-w-sm text-center ${
-          notifType === "error" ? "bg-red-600 text-white" :
-          notifType === "success" ? "bg-green-600 text-white" :
-          notifType === "warning" ? "bg-amber-500 text-white" :
-          "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-        }`}>
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-2.5 rounded-xl shadow-2xl text-sm font-medium z-50 transition-all max-w-sm text-center ${
+            notifType === "error"
+              ? "bg-red-600 text-white"
+              : notifType === "success"
+                ? "bg-green-600 text-white"
+                : notifType === "warning"
+                  ? "bg-amber-500 text-white"
+                  : "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
+          }`}
+        >
           {notification}
         </div>
       )}

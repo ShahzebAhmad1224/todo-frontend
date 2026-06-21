@@ -11,9 +11,9 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const navLinks = [
-    { to: "/dashboard", label: "Tasks", icon: "✅" },
-    { to: "/whiteboard", label: "Whiteboard", icon: "🎨" },
-    { to: "/docs", label: "Docs", icon: "📄" },
+    { to: "/dashboard", label: "Tasks" },
+    { to: "/whiteboard", label: "Whiteboard" },
+    { to: "/docs", label: "Docs" },
   ];
 
   return (
@@ -26,8 +26,12 @@ const Navbar = () => {
               <span className="text-white font-bold text-lg">W</span>
             </div>
             <div>
-              <span className="font-bold text-lg text-gray-800 dark:text-white">WorkNest</span>
-              <span className="text-xs text-gray-400 dark:text-gray-500 ml-1 hidden sm:inline">Your creative workspace</span>
+              <span className="font-bold text-lg text-gray-800 dark:text-white">
+                WorkNest
+              </span>
+              <span className="text-xs text-gray-400 dark:text-gray-500 ml-1 hidden sm:inline">
+                Your creative workspace
+              </span>
             </div>
           </div>
 
@@ -68,7 +72,9 @@ const Navbar = () => {
                     {user.name?.charAt(0).toUpperCase()}
                   </span>
                 </div>
-                <span className="text-gray-700 dark:text-gray-200 font-medium text-sm">{user.name}</span>
+                <span className="text-gray-700 dark:text-gray-200 font-medium text-sm">
+                  {user.name}
+                </span>
               </div>
             )}
 
