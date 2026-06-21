@@ -44,9 +44,23 @@ const ToolBtn = ({ onClick, title, active, children, className = "", disabled = 
 
 const Divider = () => <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />;
 
-// Load external library via script tag
-const loadScript = (src) => new Promise((resolve, reject) => {
-  if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+// Load external library via script tag — safe for repeat calls
+const loadScript = (src, checkGlobal) => new Promise((resolve, reject) => {
+  // If global already exists, resolve immediately
+  if (checkGlobal && window[checkGlobal]) { resolve(); return; }
+  // If script tag exists but global not ready yet, wait for it
+  const existing = document.querySelector(`script[src="${src}"]`);
+  if (existing) {
+    // Poll until global is ready (max 5s)
+    const start = Date.now();
+    const poll = () => {
+      if (!checkGlobal || window[checkGlobal]) { resolve(); return; }
+      if (Date.now() - start > 5000) { reject(new Error(`Timeout waiting for ${checkGlobal}`)); return; }
+      setTimeout(poll, 100);
+    };
+    poll();
+    return;
+  }
   const s = document.createElement("script");
   s.src = src;
   s.onload = resolve;
@@ -269,26 +283,28 @@ export default function DocEditor() {
     setIsLoading(true);
     setLoadingMsg("Loading Word document...");
     try {
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js");
+      await loadScript(
+        "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js",
+        "mammoth"
+      );
       const arrayBuffer = await file.arrayBuffer();
       const result = await window.mammoth.convertToHtml({ arrayBuffer });
       if (editorRef.current) {
-        // Apply better styling to the converted content
-        let html = result.value;
+        let html = result.value || "";
         // Fix table styling
         html = html.replace(/<table>/g, '<table style="border-collapse:collapse;width:100%;margin:12px 0">');
-        html = html.replace(/<td>/g, '<td style="border:1px solid #cbd5e1;padding:8px 12px">');
-        html = html.replace(/<th>/g, '<th style="border:1px solid #cbd5e1;padding:8px 12px;background:#f8fafc;font-weight:600">');
-        editorRef.current.innerHTML = html || "<p><em>Document appears empty or could not be parsed.</em></p>";
+        html = html.replace(/<td>/g, '<td style="border:1px solid #cbd5e1;padding:8px 12px;color:#1f2937">');
+        html = html.replace(/<th>/g, '<th style="border:1px solid #cbd5e1;padding:8px 12px;background:#f8fafc;font-weight:600;color:#111827">');
+        // Wrap in explicit-color container
+        html = `<div style="color:#1f2937">${html || "<p><em style='color:#9ca3af'>Document appears empty or could not be parsed.</em></p>"}</div>`;
+        editorRef.current.innerHTML = "";
+        await new Promise(r => setTimeout(r, 30));
+        editorRef.current.innerHTML = html;
         updateCounts();
         setDocType("docx");
         setIsReadOnly(true);
         setHasDocument(true);
-        if (result.messages.length) {
-          notify("✅ Word document loaded! Some formatting may vary. Click 'Edit Document' to edit.", "success");
-        } else {
-          notify("✅ Word document loaded successfully! Click 'Edit Document' to make changes.", "success");
-        }
+        notify("✅ Word document loaded! Click 'Edit Document' to make changes.", "success");
       }
     } catch (err) {
       console.error(err);
@@ -304,8 +320,12 @@ export default function DocEditor() {
     setIsLoading(true);
     setLoadingMsg("Extracting PDF content... This may take a moment.");
     try {
-      // Load PDF.js
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
+      // Load PDF.js — pass global name so we wait until it's truly ready
+      await loadScript(
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+        "pdfjsLib"
+      );
+      // Always reassign workerSrc in case of stale state
       window.pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
@@ -313,51 +333,80 @@ export default function DocEditor() {
       const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const numPages = pdf.numPages;
 
-      let fullHtml = `<h1 style="font-size:22px;font-weight:700;color:#1e293b;margin-bottom:4px">${docName}</h1>
-        <p style="color:#64748b;font-size:12px;margin-bottom:24px">Extracted from PDF · ${numPages} page${numPages > 1 ? "s" : ""}</p>`;
+      // Build HTML with fully explicit inline colors so dark/light mode never bleed in
+      let fullHtml =
+        `<div style="color:#111827;font-family:inherit">` +
+        `<h1 style="font-size:22px;font-weight:700;color:#111827;margin:0 0 4px 0">${
+          docName.replace(/</g,"&lt;").replace(/>/g,"&gt;")
+        }</h1>` +
+        `<p style="color:#6b7280;font-size:12px;margin:0 0 20px 0">` +
+          `Extracted from PDF · ${numPages} page${numPages > 1 ? "s" : ""}` +
+        `</p>`;
 
       for (let i = 1; i <= numPages; i++) {
         setLoadingMsg(`Extracting page ${i} of ${numPages}...`);
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
 
-        // Group text items into lines
-        const lines = [];
-        let currentLine = [];
-        let lastY = null;
+        // --- Smarter line grouping using Y coordinate buckets ---
+        // Sort items by descending Y (PDF coords are bottom-up), then by X
+        const sorted = [...textContent.items]
+          .filter(item => item.str && item.str.trim())
+          .sort((a, b) => b.transform[5] - a.transform[5] || a.transform[4] - b.transform[4]);
 
-        textContent.items.forEach((item) => {
-          const y = Math.round(item.transform[5]);
-          if (lastY !== null && Math.abs(y - lastY) > 3) {
-            if (currentLine.length) lines.push(currentLine.join(" ").trim());
-            currentLine = [];
-          }
-          if (item.str.trim()) currentLine.push(item.str);
-          lastY = y;
+        const lineMap = new Map(); // rounded-Y => [{str, x, height}]
+        sorted.forEach((item) => {
+          const y = Math.round(item.transform[5] / 4) * 4; // bucket to 4pt rows
+          if (!lineMap.has(y)) lineMap.set(y, []);
+          lineMap.get(y).push({ str: item.str, x: item.transform[4], h: item.height || 12 });
         });
-        if (currentLine.length) lines.push(currentLine.join(" ").trim());
 
-        if (numPages > 1) {
-          fullHtml += `<div style="border-top:2px solid #e2e8f0;margin:20px 0;padding-top:8px"><span style="color:#94a3b8;font-size:11px">— Page ${i} —</span></div>`;
-        }
+        // Sort lines top-to-bottom (descending Y) and join words left-to-right
+        const sortedYs = [...lineMap.keys()].sort((a, b) => b - a);
+        const lines = sortedYs.map(y =>
+          lineMap.get(y)
+            .sort((a, b) => a.x - b.x)
+            .map(i => i.str)
+            .join(" ")
+            .trim()
+        ).filter(Boolean);
+
+        // Page separator
+        fullHtml +=
+          `<div style="border-top:2px solid #e5e7eb;margin:20px 0 10px;padding-top:6px">` +
+          `<span style="color:#9ca3af;font-size:11px;font-weight:500">— Page ${i} —</span>` +
+          `</div>`;
 
         lines.forEach((line) => {
-          if (!line.trim()) return;
-          const fs = line.length < 60 && /^[A-Z\d]/.test(line) ? "font-weight:600;" : "";
-          fullHtml += `<p style="${fs}margin:4px 0">${line.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`;
+          const safe = line.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+          // Heuristic: short lines that start with uppercase might be headings
+          const isHeading = line.length < 80 && /^[A-Z\u00C0-\u024F\d]/.test(line)
+            && lineMap.get(sortedYs.find(y => lineMap.get(y).some(i => i.str === line.split(" ")[0])))
+               ?.[0]?.h > 13;
+          if (isHeading) {
+            fullHtml += `<p style="font-size:15px;font-weight:700;color:#111827;margin:10px 0 4px 0">${safe}</p>`;
+          } else {
+            fullHtml += `<p style="font-size:13px;color:#1f2937;margin:3px 0;line-height:1.65">${safe}</p>`;
+          }
         });
       }
 
+      fullHtml += `</div>`;
+
       if (editorRef.current) {
+        // Clear first so React doesn't merge stale innerHTML
+        editorRef.current.innerHTML = "";
+        // Use a small timeout so the DOM flush completes before writing new content
+        await new Promise(r => setTimeout(r, 30));
         editorRef.current.innerHTML = fullHtml;
         updateCounts();
         setDocType("pdf");
         setIsReadOnly(true);
         setHasDocument(true);
-        notify(`✅ PDF loaded (${numPages} pages). Click 'Edit Document' to edit the extracted text.`, "success");
+        notify(`✅ PDF loaded (${numPages} pages). Click 'Edit Document' to make changes.`, "success");
       }
     } catch (err) {
-      console.error(err);
+      console.error("PDF load error:", err);
       notify("❌ Failed to load PDF. The file may be encrypted or corrupted.", "error");
     } finally {
       setIsLoading(false);
@@ -370,7 +419,10 @@ export default function DocEditor() {
     setIsLoading(true);
     setLoadingMsg("Loading PowerPoint presentation...");
     try {
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js");
+      await loadScript(
+        "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+        "JSZip"
+      );
 
       const arrayBuffer = await file.arrayBuffer();
       const zip = await window.JSZip.loadAsync(arrayBuffer);
@@ -386,8 +438,9 @@ export default function DocEditor() {
 
       if (slideFiles.length === 0) throw new Error("No slides found");
 
-      let fullHtml = `<h1 style="font-size:22px;font-weight:700;color:#1e293b;margin-bottom:4px">${docName}</h1>
-        <p style="color:#64748b;font-size:12px;margin-bottom:24px">PowerPoint Presentation · ${slideFiles.length} slide${slideFiles.length > 1 ? "s" : ""}</p>`;
+      let fullHtml = `<div style="color:#1f2937">` +
+        `<h1 style="font-size:22px;font-weight:700;color:#111827;margin:0 0 4px 0">${docName.replace(/</g,"&lt;")}</h1>` +
+        `<p style="color:#6b7280;font-size:12px;margin:0 0 20px 0">PowerPoint Presentation · ${slideFiles.length} slide${slideFiles.length > 1 ? "s" : ""}</p>`;
 
       for (let idx = 0; idx < slideFiles.length; idx++) {
         setLoadingMsg(`Processing slide ${idx + 1} of ${slideFiles.length}...`);
@@ -408,24 +461,26 @@ export default function DocEditor() {
           if (lineText.trim()) slideTexts.push(lineText.trim());
         });
 
-        // Render slide
-        fullHtml += `
-          <div style="border:2px solid #e2e8f0;border-radius:12px;padding:24px;margin:16px 0;background:#fafafa;min-height:120px">
-            <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
-              Slide ${idx + 1}
-            </div>
-            ${slideTexts.length === 0
-              ? '<p style="color:#94a3b8;font-style:italic">Empty slide</p>'
-              : slideTexts.map((t, i) => {
-                  const isTitle = i === 0 && t.length < 120;
-                  return isTitle
-                    ? `<h2 style="font-size:18px;font-weight:700;color:#1e293b;margin:0 0 8px 0">${t}</h2>`
-                    : `<p style="margin:4px 0;color:#374151">${t}</p>`;
-                }).join("")}
-          </div>`;
+        // Render slide with explicit colors
+        fullHtml +=
+          `<div style="border:2px solid #e5e7eb;border-radius:12px;padding:24px;margin:16px 0;background:#f9fafb;min-height:120px">` +
+          `<div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Slide ${idx + 1}</div>` +
+          (slideTexts.length === 0
+            ? '<p style="color:#9ca3af;font-style:italic">Empty slide</p>'
+            : slideTexts.map((t, i) => {
+                const safe = t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+                return i === 0 && t.length < 120
+                  ? `<h2 style="font-size:18px;font-weight:700;color:#111827;margin:0 0 8px 0">${safe}</h2>`
+                  : `<p style="margin:4px 0;font-size:13px;color:#1f2937;line-height:1.6">${safe}</p>`;
+              }).join("")) +
+          `</div>`;
       }
 
+      fullHtml += `</div>`;
+
       if (editorRef.current) {
+        editorRef.current.innerHTML = "";
+        await new Promise(r => setTimeout(r, 30));
         editorRef.current.innerHTML = fullHtml;
         updateCounts();
         setDocType("pptx");
@@ -884,12 +939,20 @@ body{margin:0;background:#1e293b;font-family:${fontFamily},sans-serif}
           color: #94a3b8;
           pointer-events: none;
         }
+        [contenteditable] { color: #1f2937; }
+        [contenteditable] p, [contenteditable] div, [contenteditable] span,
+        [contenteditable] li, [contenteditable] td, [contenteditable] th {
+          color: inherit;
+        }
         [contenteditable] table { border-collapse: collapse; }
         [contenteditable] td, [contenteditable] th { border: 1px solid #cbd5e1; padding: 6px 10px; }
-        [contenteditable] blockquote { border-left: 4px solid #6366f1; margin: 12px 0; padding: 8px 16px; background: #f5f3ff; border-radius: 0 8px 8px 0; }
+        [contenteditable] blockquote { border-left: 4px solid #6366f1; margin: 12px 0; padding: 8px 16px; background: #f5f3ff; border-radius: 0 8px 8px 0; color: #374151; }
         [contenteditable] pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; font-family: 'Courier New', monospace; overflow-x: auto; }
         [contenteditable] img { max-width: 100%; border-radius: 4px; }
         [contenteditable] a { color: #6366f1; text-decoration: underline; }
+        [contenteditable] h1 { color: #111827; }
+        [contenteditable] h2 { color: #1f2937; }
+        [contenteditable] h3 { color: #374151; }
       `}</style>
     </div>
   );
